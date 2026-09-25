@@ -5,11 +5,9 @@ Stores both embeddings and chunks as dictionary values.
 
 """
 from pathlib import Path
-import pandas as pd
-import numpy as np
 from sentence_transformers import SentenceTransformer
 
-MAX_CHUNK_SIZE = 1200 # 1200 char limit for each chunk
+MAX_CHUNK_SIZE = 800 # char limit for each chunk
 EMBEDDER_MODEL = "all-MiniLM-L6-v2" # Name of the embedder model to use
 
 embedder = SentenceTransformer(EMBEDDER_MODEL)

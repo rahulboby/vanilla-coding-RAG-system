@@ -14,7 +14,12 @@ api_key = "placeholder"
 api_url = "https://localhost:11434/v1"
 
 DEFAULT_HISTORY_MESSAGES = history_messages = [
-            {'role' : 'system', 'content' : 'Just list out the concepts that were given in the context with the question. DO NOT answer the question, just tell the user if the answer to the question is available in the context, and list all the topics that were given in the context.'}
+            {'role' : 'system', 
+             'content' : """
+                    DO not answer the question asked by the user. 
+                    In neat bullet points, list out the topics in the context given for that question. 
+                    Also include a very brief info of what was explained in each topic. 
+            """}
         ] 
 
 # custom linkedlist class to store embeddings, embedding distance and index
@@ -91,12 +96,21 @@ class ChatBot():
         ptr = None
 
         # Create a linkedlist of nodes containing index and dist of each - to take the top k by traversing.
+        # MISTAKE: I made it in such a way head was always the chunk 0 -because no check if the ptr was at head was done, everytime the second chunk would be added after the head, making the head stay there no matter what. 
+        # Fixed? 
         for i in range(len(self.embeddings)):
             dist = self.distance(q_embedding, self.embeddings[i])
             if head == None:
                 head = node()
                 head.dist = dist
                 head.index = i
+                continue
+            if dist<head.dist:
+                new_node = node()
+                new_node.dist = dist
+                new_node.index = i
+                new_node.next = head
+                head = new_node
             else:
                 ptr = head
                 while True:
@@ -126,7 +140,8 @@ class ChatBot():
                 print("Lesser number of chunks than top_k: retrieving all chunks")
                 break
             context.append(self.chunks[ptr.index])
-            print(f"Retrieved Chunk {i}")
+            if self.verbose:
+                print(f"Retrieved Chunk {ptr.index}")
             ptr = ptr.next
         else:
             print(f"Retrieved {top_k} chunks")

@@ -5,20 +5,35 @@ For this version 1, I will be using only the terminal for chatting, and not stre
 """
 
 from openai import OpenAI
-
-from rag.retrieval import retrieve # RAG retrieval function
+from rag.ingest import embed
+import pickle
+import math
+from pathlib import Path
 
 api_key = "placeholder"
 api_url = "https://localhost:11434/v1"
-model_name = "gpt-oss:20b"
 
 DEFAULT_HISTORY_MESSAGES = history_messages = [
             {'role' : 'system', 'content' : 'Just list out the concepts that were given in the context with the question. DO NOT answer the question, just tell the user if the answer to the question is available in the context, and list all the topics that were given in the context.'}
         ] 
 
+# custom linkedlist class to store embeddings, embedding distance and index
+class node:
+    def __init__(self):
+        self.dist = None
+        self.index = None
+        self.next = None
+
 class ChatBot():
 
-    def __init__(self, api_key: str = "placeholder", base_url: str = "http://localhost:11434/v1", model_name: str = "gemma4:e4b", verbose: bool = False)-> None:
+    def __init__(
+            self, api_key: str = "placeholder", 
+            base_url: str = "http://localhost:11434/v1", 
+            model_name: str = "gemma4:e4b", 
+            verbose: bool = False,
+            ingestion_path_str: str = "data/ingestion"
+    )-> None:
+        
         self.model_name = model_name
         self.history_messages = DEFAULT_HISTORY_MESSAGES
         # Let's keep the history and the messages as the same thing in the namespace (avoid appending every time)
@@ -27,6 +42,13 @@ class ChatBot():
             base_url = base_url,
             api_key = api_key
         )
+        self.ingestion_path = Path(ingestion_path_str)
+
+        print("Loading embeddings...")
+        self.embeddings = pickle.load(open(self.ingestion_path / "embeddings.pkl", "rb"))
+        print("Loading chunks...")
+        self.chunks = pickle.load(open(self.ingestion_path / "chunks.pkl", "rb"))
+        print("DONE")
 
 
     def clear_history(self):
@@ -41,8 +63,76 @@ class ChatBot():
     def build_prompt(self, question: str = '101'):
         if question == '101':
             return 'No prompt - say "NO PROMPT GIVEN"'
-        context = retrieve(query=question, top_k = 1)
+        context = self.retrieve(query=question, top_k = 5)
         return f"question: {question} \n context: {context}"
+
+    def distance(self, e1, e2):
+        # returns the distance between the two embeddings e1 and e2
+        sum_dist = 0
+        for i in range(len(e1)):
+            sum_dist += (e1[i]-e2[i])**2
+
+        return math.sqrt(sum_dist)
+
+    def retrieve(self, query: str, top_k: int = 3) -> list:
+        # Use the same embed function from ingestion.py for continuity
+        q_embedding = embed(query) 
+
+        # let's assume top_k is 3 - then we have to create top 3 values 
+
+        """
+        To store the top_k values, we will use a custom linkedlist setup.
+        I know this is an overkill - we could have just used the built-in heapq module 
+        in python that was introduced in python 2.3
+        But, I want this project to have as much less imports as possible - 
+        completely vanilla code everything to test my python skills.
+        """
+        head = None
+        ptr = None
+
+        # Create a linkedlist of nodes containing index and dist of each - to take the top k by traversing.
+        for i in range(len(self.embeddings)):
+            dist = self.distance(q_embedding, self.embeddings[i])
+            if head == None:
+                head = node()
+                head.dist = dist
+                head.index = i
+            else:
+                ptr = head
+                while True:
+                    if ptr.next == None or ptr.next.dist > dist:
+                        new_node = node()
+                        new_node.index = i
+                        new_node.dist = dist
+                        new_node.next = ptr.next
+                        ptr.next = new_node
+                        break
+                    ptr = ptr.next
+
+        if self.verbose:
+            # Print the linkedlist formed for retrieval
+            print("Linked list formed for this retrieval: ")
+            ptr = head
+            while ptr!=None:
+                print(ptr.index, end='->')
+                ptr = ptr.next
+            print('X')
+
+        # Create a context
+        context = []
+        ptr = head
+        for i in range(top_k):
+            if ptr == None:
+                print("Lesser number of chunks than top_k: retrieving all chunks")
+                break
+            context.append(self.chunks[ptr.index])
+            print(f"Retrieved Chunk {i}")
+            ptr = ptr.next
+        else:
+            print(f"Retrieved {top_k} chunks")
+        
+        
+        return context
     
     def generate_response(self, question: str = "101"):
         if question == "101":
@@ -51,7 +141,7 @@ class ChatBot():
         self.history_messages.append({'role' : 'user', 'content' : self.build_prompt(question)})
         
         response_object = self.client.chat.completions.create(
-            model = model_name,
+            model = self.model_name,
             messages = self.history_messages,
             temperature = 0.7
         )
@@ -81,7 +171,7 @@ class ChatBot():
         self.history_messages.append({'role' : 'user', 'content' : built_prompt})
 
         stream = self.client.chat.completions.create(
-            model = model_name,
+            model = self.model_name,
             messages = self.history_messages,
             temperature = 0.7,
             stream = True,

@@ -46,7 +46,7 @@ def get_ingestion(raw_folder: str, verbose: bool = True):
 				print(f"Line "+'-'*80)
 				print(line)
 				# Check if this line would cause the max limit to exceed in chunks
-				if len(line) + len(chunks) > MAX_CHUNK_SIZE:
+				if len(line) + len(chunk) > MAX_CHUNK_SIZE: # Mistake here - I put 'chunks' here instead of 'chunk'
 					# Add each chunk to the chunk_list
 					chunk_list.append(chunk)
 					# Set chunk as the line

@@ -13,14 +13,16 @@ from pathlib import Path
 api_key = "placeholder"
 api_url = "https://localhost:11434/v1"
 
-DEFAULT_HISTORY_MESSAGES = history_messages = [
-            {'role' : 'system', 
-             'content' : """
-                    DO not answer the question asked by the user. 
-                    In neat bullet points, list out the topics in the context given for that question. 
-                    Also include a very brief info of what was explained in each topic. 
-            """}
-        ] 
+# Mistak: Initially, this was assigned in the ChatBot class as a reference, and not a copy
+# This made additions to self.history_messages also change DEFAULT_HISTORY_MESSAGES because both point to the same reference
+DEFAULT_HISTORY_MESSAGES = [{
+    'role' : 'system', 
+    'content' : """
+        DO not answer the question asked by the user. 
+        In neat bullet points, list out the topics in the context given for that question. 
+        Also include a very brief info of what was explained in each topic. 
+    """
+}] 
 
 # custom linkedlist class to store embeddings, embedding distance and index
 class node:

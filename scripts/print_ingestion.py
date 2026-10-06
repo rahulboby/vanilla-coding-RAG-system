@@ -8,7 +8,7 @@ chunks = pickle.load(open("data/ingestion/chunks.pkl", 'rb'))
 embeddings = pickle.load(open("data/ingestion/embeddings.pkl", 'rb'))
 
 print(f"Number of chunks: {len(chunks)}")
-print(f"Number of chunks: {len(embeddings)}")
+print(f"Number of embeddings: {len(embeddings)}")
 
 for chunk, embedding in zip(chunks, embeddings):
     print(f"CHUNK {chunk}")

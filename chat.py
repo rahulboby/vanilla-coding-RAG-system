@@ -27,22 +27,30 @@ else:
 
 prompt = ""
 
-while True:
-    print("\nUser: ")
-    prompt = input()
-    
-    if prompt.lower().strip() == '/bye':
-        break
-    
-    if prompt.lower().strip() == '/clear':
-        bot.clear_history()
-        print("Cleared chat history.")
-        continue
+try:
+    while True:
+        print("\nUser: ")
+        prompt = input()
+        
+        if prompt.lower().strip() == '/bye':
+            # Ends the chat
 
-    print("\nAssistant: ")
+            break
+        
+        if prompt.lower().strip() == '/clear':
+            bot.clear_history()
+            print("Cleared chat history.")
+            continue
 
-    bot.generate_response(question=prompt)
+        print("\nAssistant: ")
 
-    print('\n' + '-'*50)
+        bot.generate_response(question=prompt)
 
-print("BYE BYE!")
+        print('\n' + '-'*50)
+
+except KeyboardInterrupt as k:
+    print("Keyboard inturrupt detected. Ending chat...")
+
+finally:
+      print("BYE BYE!")
+

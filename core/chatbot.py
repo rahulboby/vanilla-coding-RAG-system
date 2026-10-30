@@ -9,6 +9,7 @@ from rag.ingest import embed
 import pickle
 import math
 from pathlib import Path
+import copy
 
 api_key = "placeholder"
 api_url = "https://localhost:11434/v1"
@@ -42,7 +43,7 @@ class ChatBot():
     )-> None:
         
         self.model_name = model_name
-        self.history_messages = DEFAULT_HISTORY_MESSAGES
+        self.history_messages = copy.deepcopy(DEFAULT_HISTORY_MESSAGES)
         # Let's keep the history and the messages as the same thing in the namespace (avoid appending every time)
         self.verbose = verbose
         self.client = OpenAI(
@@ -59,7 +60,7 @@ class ChatBot():
 
 
     def clear_history(self):
-        self.history_messages = DEFAULT_HISTORY_MESSAGES
+        self.history_messages = copy.deepcopy(DEFAULT_HISTORY_MESSAGES)
 
     def get_history(self):
         return self.history_messages
@@ -73,13 +74,29 @@ class ChatBot():
         context = self.retrieve(query=question, top_k = 5)
         return f"question: {question} \n context: {context}"
 
-    def distance(self, e1, e2):
+    def eucledian_distance(self, e1, e2):
         # returns the distance between the two embeddings e1 and e2
         sum_dist = 0
         for i in range(len(e1)):
             sum_dist += (e1[i]-e2[i])**2
 
         return math.sqrt(sum_dist)
+
+    def cosine_similarity(self, e1, e2):
+        if(len(e1) != len(e2)):
+            raise Exception
+
+        # Researched: using zip() function becuase it is written in C and latency is very low
+
+        dot_product = sum([a1 * a2 for a1, a2 in zip(e1, e2)])
+
+        magnitude_e1 = math.sqrt(sum(a**2 for a in e1))
+        magnitude_e2 = math.sqrt(sum(a**2 for a in e2))
+
+        cosine_similarity = dot_product / (magnitude_e1 * magnitude_e2)
+
+        return cosine_similarity
+
 
     def retrieve(self, query: str, top_k: int = 3) -> list:
         # Use the same embed function from ingestion.py for continuity
@@ -101,7 +118,8 @@ class ChatBot():
         # MISTAKE: I made it in such a way head was always the chunk 0 -because no check if the ptr was at head was done, everytime the second chunk would be added after the head, making the head stay there no matter what. 
         # Fixed? 
         for i in range(len(self.embeddings)):
-            dist = self.distance(q_embedding, self.embeddings[i])
+            dist = self.eucledian_distance(q_embedding, self.embeddings[i])
+            cosine_similarity = self.cosine_similarity(q_embedding, self.embeddings[i])
             if head == None:
                 head = node()
                 head.dist = dist
